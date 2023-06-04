@@ -1,0 +1,10 @@
+.husky
+node_modules
+src
+.eslintignore
+.eslintrc.js
+.gitignore
+.npmignore
+jest.config.js
+package-lock.json
+tsconfig.json

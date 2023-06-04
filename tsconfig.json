@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "lib": ["ES2015"],
+    "module": "commonjs",
+    "strict": true,
+    "declaration": true,
+    "importHelpers": true,
+    "noUncheckedIndexedAccess": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+  },
+  "files": [
+    "./src/index.ts",
+    "./src/_.test.ts"
+  ]
+}
