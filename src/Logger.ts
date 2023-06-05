@@ -21,14 +21,14 @@ export type LogInfo = {
    */
   tags?: string[];
   /**
-   * we want default debug here because generally when we\
+   * we want default "debug" here because generally when we\
    * console.log during development it's rarther temporary \
    * solution. And for something more permanent we should\
    * explicitly specify log level
    *
    * @default 'debug'
    */
-  level?: LoggerConstructorArg[ 'level' ];
+  level?: Exclude< LoggerConstructorArg[ 'level' ], 'off' >;
 };
 
 
