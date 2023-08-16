@@ -47,16 +47,39 @@ const levels: LoggerEnvVars[ 'LOG_LEVEL' ][] = [
   'error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly', 'off',
 ];
 
-export const getLoggerEnvVars = ( env: Record< string, string | undefined > ): LoggerEnvVars => ( {
+export type GetLoggerEnvVarsArg = {
+  env: Record< string, string | undefined >;
+  /**
+   * sometimes we cannot rely on env vars being named \
+   * as they are defined in "loggerEnvVarNames" (for \
+   * example when we have common environment for both \
+   * website and api, so they share env vars, and so we\
+   * will try to use smth like API_LOG_LEVEL and \
+   * WEBSITE_LOG_LEVEL. That's why we need this property
+   */
+  envVarNames?: {
+    [ loggerEnvVarNames.LOG_LEVEL ]: string;
+    [ loggerEnvVarNames.LOG_TAGS ]: string;
+  }
+};
+export const getLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsArg ): LoggerEnvVars => ( {
   [ loggerEnvVarNames.LOG_LEVEL ]: ( () => {
-    const maybeLevel = env[ loggerEnvVarNames.LOG_LEVEL ] as LoggerEnvVars[ 'LOG_LEVEL' ] | undefined;
+    const logLevelEnvVarName = envVarNames === undefined
+      ? loggerEnvVarNames.LOG_LEVEL
+      : envVarNames.LOG_LEVEL;
+
+    const maybeLevel = env[ logLevelEnvVarName ] as LoggerEnvVars[ 'LOG_LEVEL' ] | undefined;
 
     return ( maybeLevel === undefined || levels.indexOf( maybeLevel ) === -1 )
       ? 'error'
       : maybeLevel;
   } )(),
   [ loggerEnvVarNames.LOG_TAGS ]: ( () => {
-    const v = env[ loggerEnvVarNames.LOG_TAGS ];
+    const logTagsEnvVarName = envVarNames === undefined
+      ? loggerEnvVarNames.LOG_TAGS
+      : envVarNames.LOG_TAGS;
+
+    const v = env[ logTagsEnvVarName ];
     if ( v === undefined ) return undefined;
 
     const pairs = v.split( ';' ).filter( Boolean );

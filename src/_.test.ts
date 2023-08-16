@@ -7,7 +7,7 @@ import { filterByLogTags } from './Logger';
 describe( 'Logger', () => {
   describe( 'getEnvVarsNS', () => {
     test( 'returns correct defaults if env does not provide necessary variables', () => {
-      const { LOG_LEVEL, LOG_TAGS } = getEnvVarsNS.getLoggerEnvVars( {} );
+      const { LOG_LEVEL, LOG_TAGS } = getEnvVarsNS.getLoggerEnvVars( { env: {} } );
 
       expect( LOG_LEVEL ).toBe( 'error' );
       expect( LOG_TAGS ).toBeUndefined();
@@ -15,11 +15,53 @@ describe( 'Logger', () => {
 
     test( 'log level fallbacks to "error" for incorrect severity in env', () => {
       const { LOG_LEVEL } = getEnvVarsNS.getLoggerEnvVars( {
-        [ getEnvVarsNS.loggerEnvVarNames.LOG_LEVEL ]: 'does not exist',
+        env: {
+          [ getEnvVarsNS.loggerEnvVarNames.LOG_LEVEL ]: 'does not exist',
+        },
       } );
 
       expect( LOG_LEVEL ).toBe( 'error' );
     } );
+
+    test( 'extract correct log level from env', () => {
+      const allowedLogLevels: getEnvVarsNS.LoggerEnvVars[ 'LOG_LEVEL' ][] = [
+        'error',
+        'warn',
+        'info',
+        'http',
+        'verbose',
+        'debug',
+        'silly',
+        'off',
+      ];
+
+      allowedLogLevels.forEach( level => {
+        const { LOG_LEVEL } = getEnvVarsNS.getLoggerEnvVars( {
+          env: {
+            [ getEnvVarsNS.loggerEnvVarNames.LOG_LEVEL ]: level,
+          },
+        } );
+
+        expect( LOG_LEVEL ).toBe( level );
+      } );
+    } );
+
+    test( 'correctly extracts LOG_LEVEL from customized env var name', () => {
+      const customizedLogLevelEnvVarName = 'API_LOG_LEVEL';
+      const { LOG_LEVEL } = getEnvVarsNS.getLoggerEnvVars( {
+        env: {
+          [ customizedLogLevelEnvVarName ]: 'silly',
+        },
+        envVarNames: {
+          LOG_LEVEL: customizedLogLevelEnvVarName,
+          LOG_TAGS: 'API_LOG_TAGS',
+        },
+      } );
+
+      expect( LOG_LEVEL ).toBe( 'silly' );
+    } );
+
+    // ===================================================================================
 
     test( 'returns LOG_TAGS as undefined if we pass incorrect shape in env', () => {
       const incorrectShapes = [
@@ -29,7 +71,9 @@ describe( 'Logger', () => {
         ':1;qweqwe:02',
       ];
       const results = incorrectShapes.map( it => getEnvVarsNS.getLoggerEnvVars( {
-        [ getEnvVarsNS.loggerEnvVarNames.LOG_TAGS ]: it,
+        env: {
+          [ getEnvVarsNS.loggerEnvVarNames.LOG_TAGS ]: it,
+        },
       } ).LOG_TAGS );
 
       expect( results.some( it => it !== undefined ) ).toBe( false );
@@ -42,7 +86,9 @@ describe( 'Logger', () => {
         'tag1:null;tag2:undefined',
       ];
       const results = incorrectObjectShapes.map( it => getEnvVarsNS.getLoggerEnvVars( {
-        [ getEnvVarsNS.loggerEnvVarNames.LOG_TAGS ]: it,
+        env: {
+          [ getEnvVarsNS.loggerEnvVarNames.LOG_TAGS ]: it,
+        },
       } ).LOG_TAGS );
 
       expect( results.some( it => it !== undefined ) ).toBe( false );
@@ -50,10 +96,27 @@ describe( 'Logger', () => {
 
     test( 'returns correct LOG_TAGS for correctly stringified env var', () => {
       const { LOG_TAGS: parsedTags } = getEnvVarsNS.getLoggerEnvVars( {
-        [ getEnvVarsNS.loggerEnvVarNames.LOG_TAGS ]: 'a:1',
+        env: {
+          [ getEnvVarsNS.loggerEnvVarNames.LOG_TAGS ]: 'a:1',
+        },
       } );
 
       expect( parsedTags ).toStrictEqual( { a: 1 } );
+    } );
+
+    test( 'correctly extracts LOG_TAGS from customized env var name', () => {
+      const customizedLogTagsEnvVarName = 'API_LOG_TAGS';
+      const { LOG_TAGS } = getEnvVarsNS.getLoggerEnvVars( {
+        env: {
+          [ customizedLogTagsEnvVarName ]: 'a:1',
+        },
+        envVarNames: {
+          LOG_LEVEL: 'API_LOG_LEVEL',
+          LOG_TAGS: customizedLogTagsEnvVarName,
+        },
+      } );
+
+      expect( LOG_TAGS ).toStrictEqual( { a: 1 } );
     } );
   } );
 
