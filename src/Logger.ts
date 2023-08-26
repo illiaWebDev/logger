@@ -94,6 +94,6 @@ export class Logger {
   }
 
   log = ( info: LogInfo ): void => {
-    this.__logger.log( info.level || 'debug', { ...info, at: new Date().toISOString() } );
+    this.__logger.log( info.level || 'debug', info );
   };
 }
