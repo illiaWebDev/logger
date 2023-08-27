@@ -68,8 +68,26 @@ export const filterByLogTags = ( envTagsEntries: [string, 0 | 1][], typedInfo: L
 export class Logger {
   __logger = defaultLogger;
 
+  /**
+   * to be as flexible as possible with our reinit logic\
+   * during runtime of the application, we want to store\
+   * latest logger constructor arg (meaning latest log \
+   * level and log tags) so that we can call reinit with\
+   * only those exact changes that we want, not being \
+   * forced to pass log level each and every time.
+   */
+  __latestLoggerConstructorArg: LoggerConstructorArg | null = null;
 
-  reinit( { level, tags }: LoggerConstructorArg ) {
+
+  reinit( { level, tags }: Partial< LoggerConstructorArg > ) {
+    const finalLogLevel = ( () => {
+      if ( level !== undefined ) return level;
+
+      const { __latestLoggerConstructorArg: arg } = this;
+
+      return arg === null ? 'error' : arg.level;
+    } )();
+
     const envTagsEntries = Object.entries( tags || [] );
 
     const filterByTags = format( info => filterByLogTags( envTagsEntries, info as LogInfo ) && info );
@@ -81,7 +99,7 @@ export class Logger {
         format.json(),
       ),
       transports: [ new transports.Console() ],
-      ...( level === 'off' ? { silent: true } : { level } ),
+      ...( finalLogLevel === 'off' ? { silent: true } : { level: finalLogLevel } ),
     } );
 
     this.__logger = logger;
