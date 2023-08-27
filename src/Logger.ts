@@ -5,7 +5,7 @@ import type { LoggerEnvVars } from './getLoggerEnvVars';
 export type LoggerConstructorArg = {
   /** @see https://github.com/winstonjs/winston#logging-levels */
   level: LoggerEnvVars[ 'LOG_LEVEL' ];
-  tags?: LoggerEnvVars[ 'LOG_TAGS' ];
+  tags: LoggerEnvVars[ 'LOG_TAGS' ];
 };
 
 
@@ -62,7 +62,7 @@ export const filterByLogTags = ( envTagsEntries: [string, 0 | 1][], typedInfo: L
     'dontSkip',
   );
 
-  return decision !== 'skip';
+  return decision === 'dontSkip';
 };
 
 export class Logger {
@@ -79,17 +79,26 @@ export class Logger {
   __latestLoggerConstructorArg: LoggerConstructorArg | null = null;
 
 
-  reinit( { level, tags }: Partial< LoggerConstructorArg > ) {
+  reinit( arg: Partial< LoggerConstructorArg > ) {
+    if ( Object.keys( arg ).length === 0 ) return;
+
+    const { level, tags } = arg;
+    const { __latestLoggerConstructorArg: latestArg } = this;
+
+
     const finalLogLevel = ( () => {
       if ( level !== undefined ) return level;
 
-      const { __latestLoggerConstructorArg: arg } = this;
+      return latestArg === null ? 'error' : latestArg.level;
+    } )();
+    const finalTags = ( () => {
+      if ( tags !== undefined ) return tags;
 
-      return arg === null ? 'error' : arg.level;
+      return latestArg === null ? {} : latestArg.tags;
     } )();
 
-    const envTagsEntries = Object.entries( tags || [] );
 
+    const envTagsEntries = Object.entries( finalTags || [] );
     const filterByTags = format( info => filterByLogTags( envTagsEntries, info as LogInfo ) && info );
 
     const logger = createLogger( {

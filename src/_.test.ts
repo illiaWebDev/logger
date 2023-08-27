@@ -9,7 +9,7 @@ describe( 'getEnvVarsNS', () => {
     const { LOG_LEVEL, LOG_TAGS } = getEnvVarsNS.getLoggerEnvVars( { env: {} } );
 
     expect( LOG_LEVEL ).toBe( 'error' );
-    expect( LOG_TAGS ).toBeUndefined();
+    expect( LOG_TAGS ).toStrictEqual( {} );
   } );
 
   test( 'log level fallbacks to "error" for incorrect severity in env', () => {
@@ -62,7 +62,7 @@ describe( 'getEnvVarsNS', () => {
 
   // ===================================================================================
 
-  test( 'returns LOG_TAGS as undefined if we pass incorrect shape in env', () => {
+  test( 'returns LOG_TAGS as {} if we pass incorrect shape in env', () => {
     const incorrectShapes = [
       '',
       'qweqwe;qweqwe',
@@ -75,10 +75,10 @@ describe( 'getEnvVarsNS', () => {
       },
     } ).LOG_TAGS );
 
-    expect( results.some( it => it !== undefined ) ).toBe( false );
+    expect( results.some( it => JSON.stringify( it ) !== '{}' ) ).toBe( false );
   } );
 
-  test( 'returns LOG_TAGS as undefined if we pass correct pairs string but values are of incorrect type', () => {
+  test( 'returns LOG_TAGS as {} if we pass correct pairs string but values are of incorrect type', () => {
     const incorrectObjectShapes = [
       'tag1:;tag2:85',
       'tag1:{};tag2:true',
@@ -90,7 +90,7 @@ describe( 'getEnvVarsNS', () => {
       },
     } ).LOG_TAGS );
 
-    expect( results.some( it => it !== undefined ) ).toBe( false );
+    expect( results.some( it => JSON.stringify( it ) !== '{}' ) ).toBe( false );
   } );
 
   test( 'returns correct LOG_TAGS for correctly stringified env var', () => {

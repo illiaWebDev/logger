@@ -30,7 +30,7 @@ export type LoggerEnvVars = {
    * derived from env var string shaped like `"tag1:0;tag2:1"`\
    * we don't want to use stringified object because that has\
    * proven to be really verbose, having too much noisy info:\
-   * brackets, quotes, whatever.\
+   * brackets, quotes, whatever.
    *
    * Values are:
    * - 0: exclude logs that have this tag;
@@ -40,7 +40,7 @@ export type LoggerEnvVars = {
    *
    * @example { tag1: 0, tag2: 1 }
    */
-  [ loggerEnvVarNames.LOG_TAGS ]?: Record< string, 0 | 1 >;
+  [ loggerEnvVarNames.LOG_TAGS ]: Record< string, 0 | 1 >;
 };
 
 const levels: LoggerEnvVars[ 'LOG_LEVEL' ][] = [
@@ -80,7 +80,7 @@ export const getLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsArg ): L
       : envVarNames.LOG_TAGS;
 
     const v = env[ logTagsEnvVarName ];
-    if ( v === undefined ) return undefined;
+    if ( v === undefined ) return {};
 
     const pairs = v.split( ';' ).filter( Boolean );
     const defaultAcc: LoggerEnvVars[ 'LOG_TAGS' ] = {};
@@ -96,6 +96,6 @@ export const getLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsArg ): L
       defaultAcc,
     );
 
-    return logTags === defaultAcc ? undefined : logTags;
+    return logTags;
   } )(),
 } );
