@@ -60,19 +60,30 @@ export type GetLoggerEnvVarsArg = {
   envVarNames?: {
     [ loggerEnvVarNames.LOG_LEVEL ]: string;
     [ loggerEnvVarNames.LOG_TAGS ]: string;
-  }
+  };
 };
-export const getLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsArg ): LoggerEnvVars => ( {
+
+/**
+ * this should be used when we implement reinit \
+ * strategies, as for reinit we sometimes want to \
+ * have tags or level as undefined, as that means\
+ * "don't override previous value"
+ */
+export const getPartialLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsArg ): Partial< LoggerEnvVars > => ( {
   [ loggerEnvVarNames.LOG_LEVEL ]: ( () => {
     const logLevelEnvVarName = envVarNames === undefined
       ? loggerEnvVarNames.LOG_LEVEL
       : envVarNames.LOG_LEVEL;
 
-    const maybeLevel = env[ logLevelEnvVarName ] as LoggerEnvVars[ 'LOG_LEVEL' ] | undefined;
+    const maybeLevel = env[ logLevelEnvVarName ];
 
-    return ( maybeLevel === undefined || levels.indexOf( maybeLevel ) === -1 )
-      ? 'error'
-      : maybeLevel;
+    if ( maybeLevel === undefined || levels.indexOf( maybeLevel as typeof levels[0] ) === -1 ) {
+      return undefined;
+    }
+
+    const typedLevel = maybeLevel as typeof levels[0];
+
+    return typedLevel;
   } )(),
   [ loggerEnvVarNames.LOG_TAGS ]: ( () => {
     const logTagsEnvVarName = envVarNames === undefined
@@ -80,7 +91,7 @@ export const getLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsArg ): L
       : envVarNames.LOG_TAGS;
 
     const v = env[ logTagsEnvVarName ];
-    if ( v === undefined ) return {};
+    if ( v === undefined ) return undefined;
 
     const pairs = v.split( ';' ).filter( Boolean );
     const defaultAcc: LoggerEnvVars[ 'LOG_TAGS' ] = {};
@@ -96,6 +107,19 @@ export const getLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsArg ): L
       defaultAcc,
     );
 
-    return logTags;
+    return logTags === defaultAcc ? undefined : logTags;
   } )(),
 } );
+
+export const getLoggerEnvVars = ( arg: GetLoggerEnvVarsArg ): LoggerEnvVars => {
+  const { LOG_LEVEL, LOG_TAGS } = getPartialLoggerEnvVars( arg );
+
+  return {
+    [ loggerEnvVarNames.LOG_LEVEL ]: LOG_LEVEL === undefined
+      ? 'error'
+      : LOG_LEVEL,
+    [ loggerEnvVarNames.LOG_TAGS ]: LOG_TAGS === undefined
+      ? {}
+      : LOG_TAGS,
+  };
+};
