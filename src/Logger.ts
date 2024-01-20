@@ -2,6 +2,40 @@ import { createLogger, format, transports } from 'winston';
 import type { LoggerEnvVars } from './getLoggerEnvVars';
 
 
+// ===================================================================================
+
+type MatchType = (
+  /** andObj contains <tagName>: 0 */
+  | 'explicitExclude'
+  /**
+   * andObj contains at least one <tagName> that is\
+   * not present in iTagsHash
+   */
+  | 'implicitExclude'
+  /**
+   * - no iTagsHash tagname is excluded with 0
+   * - all "include" tags from andObj are present in iTagsHash
+   */
+  | 'include'
+);
+const computeMatchTypeWithOrSegment = (
+  iTagsHash: Record< string, true >,
+  orSegment: LoggerEnvVars[ 'LOG_TAGS' ][ 0 ],
+): MatchType => {
+  const orSegmentEntries = Object.entries( orSegment );
+  if ( orSegmentEntries.some( it => iTagsHash[ it[ 0 ] ] !== undefined && it[ 1 ] === 0 ) ) {
+    return 'explicitExclude';
+  }
+
+  if ( orSegmentEntries.some( it => iTagsHash[ it[ 0 ] ] === undefined && it[ 1 ] === 1 ) ) {
+    return 'implicitExclude';
+  }
+
+  return 'include';
+};
+
+// ===================================================================================
+
 export type LoggerConstructorArg = {
   /** @see https://github.com/winstonjs/winston#logging-levels */
   level: LoggerEnvVars[ 'LOG_LEVEL' ];
@@ -37,32 +71,42 @@ const defaultLogger = createLogger();
 /**
  * @returns `false` - filter out this log call, `true` - continue with this call
  */
-export const filterByLogTags = ( envTagsEntries: [string, 0 | 1][], typedInfo: LogInfo ): boolean => {
-  if ( envTagsEntries.length === 0 ) return true;
+export const filterByLogTags = ( logTags: LoggerEnvVars[ 'LOG_TAGS' ], typedInfo: LogInfo ): boolean => {
+  /** no logTags configured - allow logging everything */
+  if ( logTags.length === 0 ) return true;
+
 
   const { tags: infoTags } = typedInfo;
+  const infoTagsHash = infoTags === undefined
+    ? {}
+    : infoTags.reduce< Record< string, true > >(
+      ( a, tag ) => ( { ...a, [ tag ]: true } ),
+      {},
+    );
 
-  const decision = envTagsEntries.reduce< 'skip' | 'dontSkip' >(
-    ( a, [ tagName, mode ] ) => {
-      if ( a === 'skip' ) return 'skip';
+  const orSegmentMatcheTypes = logTags.map( orSegment => computeMatchTypeWithOrSegment( infoTagsHash, orSegment ) );
 
-      const skipThisTagName = mode === 0;
-      if ( skipThisTagName ) {
-        // we should skip this log call if this tagName is present
-        return ( infoTags !== undefined && infoTags.some( it => it === tagName ) )
-          ? 'skip'
-          : 'dontSkip';
-      }
+  /**
+   * if at least one or segment states explicit exclusion - we\
+   * exclude this whole log invocation.\
+   * And if there are no or segments that result in inclusion -\
+   * we also exclude this log invocation
+   */
+  if (
+    orSegmentMatcheTypes.some( it => it === 'explicitExclude' )
+    || orSegmentMatcheTypes.some( it => it === 'include' ) === false
+  ) {
+    return false;
+  }
 
-      // here we should check that tagName is present
-      return ( infoTags !== undefined && ( infoTags.some( it => it === tagName ) ) )
-        ? 'dontSkip'
-        : 'skip';
-    },
-    'dontSkip',
-  );
-
-  return decision === 'dontSkip';
+  /**
+   *  here we are sure:
+   * - there is no explicit exclusion orSegment
+   * - there is at least one orSegment that matches infoTagsHash
+   *
+   * so we allow this invocation to proceed
+   */
+  return true;
 };
 
 export class Logger {
@@ -86,20 +130,18 @@ export class Logger {
     const { __latestLoggerConstructorArg: latestArg } = this;
 
 
-    const finalLogLevel = ( () => {
+    const finalLogLevel: LoggerConstructorArg[ 'level' ] = ( () => {
       if ( level !== undefined ) return level;
 
       return latestArg === null ? 'error' : latestArg.level;
     } )();
-    const finalTags = ( () => {
+    const finalTags: LoggerConstructorArg[ 'tags' ] = ( () => {
       if ( tags !== undefined ) return tags;
 
-      return latestArg === null ? {} : latestArg.tags;
+      return latestArg === null ? [] : latestArg.tags;
     } )();
 
-
-    const envTagsEntries = Object.entries( finalTags || [] );
-    const filterByTags = format( info => filterByLogTags( envTagsEntries, info as LogInfo ) && info );
+    const filterByTags = format( info => filterByLogTags( finalTags, info as LogInfo ) && info );
 
     const logger = createLogger( {
       format: format.combine(
@@ -112,6 +154,10 @@ export class Logger {
     } );
 
     this.__logger = logger;
+    this.__latestLoggerConstructorArg = {
+      level: finalLogLevel,
+      tags: finalTags,
+    };
   }
 
   // ===================================================================================

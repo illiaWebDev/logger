@@ -27,20 +27,39 @@ export type LoggerEnvVars = {
     | 'off'
   );
   /**
-   * derived from env var string shaped like `"tag1:0;tag2:1"`\
-   * we don't want to use stringified object because that has\
+   * derived from env var string shaped like:
+   * - `"tag1:0;tag2:1"`
+   * - `"tag1:0;tag2:1|tag3:0;tag4:1"`\
+   *
+   * where
+   * - ":" is a separator between tag name and inclusion modifier,\
+   * 1 means "include", 0 means "exclude" (0 takes precedence over 1)
+   * - ";" is a separator like && in typescript, meaning that both sides\
+   * must to be true for a given log invocation to match
+   * - "|" is a ||-like operator, giving us the ability to target \
+   * different tags combinations.
+   *
+   * We don't want to use stringified object because that has\
    * proven to be really verbose, having too much noisy info:\
-   * brackets, quotes, whatever.
+   * brackets, quotes, whatever.\
    *
-   * Values are:
-   * - 0: exclude logs that have this tag;
-   * - 1: include logs that have this tag;
+   * On terminology: \
+   * in this tags string "tag1:0;tag2:1|tag3:0;tag4:1"
+   * - "tag1:0;tag2:1" and "tag3:0;tag4:1" are OR segments, meaning\
+   * they exist kinda in parallel, and log invocation might succeed\
+   * if matched by at least one of those
+   * - "tag1:0" is an AND segment, for a log invocation to succeed,\
+   * its tags must match all AND segments in at least one OR segment.
+   * - if there exists at least one OR segment that contains AND \
+   * segment explicitly excluding [tagName] present in current log\
+   * invocation - log invocation is excluded even if there exists\
+   * OR segment that it matches.
    *
-   * NOTE 0 takes precedence over 1
+   * **IMPORTANT** exclude takes precedence over include
    *
-   * @example { tag1: 0, tag2: 1 }
+   * @example [{ tag1: 0, tag2: 1 }, { tag3: 0, tag4: 1 }]
    */
-  [ loggerEnvVarNames.LOG_TAGS ]: Record< string, 0 | 1 >;
+  [ loggerEnvVarNames.LOG_TAGS ]: Array< Record< string, 0 | 1 > >;
 };
 
 const levels: LoggerEnvVars[ 'LOG_LEVEL' ][] = [
@@ -93,21 +112,25 @@ export const getPartialLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsA
     const v = env[ logTagsEnvVarName ];
     if ( v === undefined ) return undefined;
 
-    const pairs = v.split( ';' ).filter( Boolean );
-    const defaultAcc: LoggerEnvVars[ 'LOG_TAGS' ] = {};
+    const logTags = v.split( '|' ).filter( Boolean ).reduce< LoggerEnvVars[ 'LOG_TAGS' ] >(
+      ( a, orPart ) => {
+        const tagsWithModifiers = orPart.split( ';' ).filter( Boolean );
+        const l = tagsWithModifiers.reduce< LoggerEnvVars[ 'LOG_TAGS' ][0] >(
+          ( innerA, tagAndModifierStr ) => {
+            const [ tag, modifier ] = tagAndModifierStr.split( ':' );
+            if ( tag === undefined || tag === '' || ( modifier !== '1' && modifier !== '0' ) ) return innerA;
 
-    const logTags = pairs.reduce(
-      ( a, it ) => {
-        const [ tagName, mode ] = it.split( ':' );
-        if ( tagName === undefined || tagName === '' || ( mode !== '0' && mode !== '1' ) ) return a;
+            return { ...innerA, [ tag ]: modifier === '0' ? 0 : 1 };
+          },
+          {},
+        );
 
-        const nextAcc: typeof a = { ...a, [ tagName ]: mode === '1' ? 1 : 0 };
-        return nextAcc;
+        return Object.keys( l ).length === 0 ? a : a.concat( l );
       },
-      defaultAcc,
+      [],
     );
 
-    return logTags === defaultAcc ? undefined : logTags;
+    return logTags.length === 0 ? undefined : logTags;
   } )(),
 } );
 
@@ -119,7 +142,7 @@ export const getLoggerEnvVars = ( arg: GetLoggerEnvVarsArg ): LoggerEnvVars => {
       ? 'error'
       : LOG_LEVEL,
     [ loggerEnvVarNames.LOG_TAGS ]: LOG_TAGS === undefined
-      ? {}
+      ? []
       : LOG_TAGS,
   };
 };

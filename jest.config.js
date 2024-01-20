@@ -3,8 +3,10 @@
 /** @type { import( 'jest' ).Config } */
 const config = {
   verbose: true,
-  preset: 'ts-jest',
-  modulePathIgnorePatterns: [ 'dist' ],
+  transform: {
+    '^.+\\.(t|j)sx?$': '@swc/jest',
+  },
+  testPathIgnorePatterns: [ '/node_modules/', '_UNUSED_', '_DEPRECATED_', 'dist' ],
 };
 
 module.exports = config;

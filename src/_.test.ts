@@ -10,7 +10,7 @@ describe( 'getEnvVarsNS', () => {
       const { LOG_LEVEL, LOG_TAGS } = getEnvVarsNS.getLoggerEnvVars( { env: {} } );
 
       expect( LOG_LEVEL ).toBe( 'error' );
-      expect( LOG_TAGS ).toStrictEqual( {} );
+      expect( LOG_TAGS ).toStrictEqual( [] );
     } );
 
     test( 'log level fallbacks to "error" for incorrect severity in env', () => {
@@ -63,12 +63,20 @@ describe( 'getEnvVarsNS', () => {
 
     // ===================================================================================
 
-    test( 'returns LOG_TAGS as {} if we pass incorrect shape in env', () => {
+    test( 'returns LOG_TAGS as [] if we pass incorrect shape in env', () => {
       const incorrectShapes = [
         '',
+        'qweqwe',
+        'qweqwe:',
+        'qweqwe:11',
+        'qweqwe:11|',
+        'qweqwe:11|qweqwe',
+        'qweqwe:11|qweqwe:',
+        'qweqwe:11|qweqwe:3',
         'qweqwe;qweqwe',
         'qweqwe:;qwe',
         ':1;qweqwe:02',
+        'qweqwe|qw:22',
       ];
       const results = incorrectShapes.map( it => getEnvVarsNS.getLoggerEnvVars( {
         env: {
@@ -76,14 +84,17 @@ describe( 'getEnvVarsNS', () => {
         },
       } ).LOG_TAGS );
 
-      expect( results.some( it => JSON.stringify( it ) !== '{}' ) ).toBe( false );
+      expect( results.some( it => JSON.stringify( it ) !== '[]' ) ).toBe( false );
     } );
 
-    test( 'returns LOG_TAGS as {} if we pass correct pairs string but values are of incorrect type', () => {
+    test( 'returns LOG_TAGS as [] if we pass correct pairs string but values are of incorrect type', () => {
       const incorrectObjectShapes = [
         'tag1:;tag2:85',
         'tag1:{};tag2:true',
         'tag1:null;tag2:undefined',
+        'tag1:null;tag2:undefined|tag3',
+        'tag1:null;tag2:undefined|tag3:',
+        'tag1:null;tag2:undefined|tag3:6',
       ];
       const results = incorrectObjectShapes.map( it => getEnvVarsNS.getLoggerEnvVars( {
         env: {
@@ -91,17 +102,26 @@ describe( 'getEnvVarsNS', () => {
         },
       } ).LOG_TAGS );
 
-      expect( results.some( it => JSON.stringify( it ) !== '{}' ) ).toBe( false );
+      expect( results.some( it => JSON.stringify( it ) !== '[]' ) ).toBe( false );
     } );
 
-    test( 'returns correct LOG_TAGS for correctly stringified env var', () => {
-      const { LOG_TAGS: parsedTags } = getEnvVarsNS.getLoggerEnvVars( {
-        env: {
-          [ getEnvVarsNS.loggerEnvVarNames.LOG_TAGS ]: 'a:1',
-        },
-      } );
+    test( 'returns correct LOG_TAGS for correctly stringified env vars', () => {
+      type Payload = { arg: string; rtrn: getEnvVarsNS.LoggerEnvVars[ 'LOG_TAGS' ] };
+      const payloads: Payload[] = [
+        { arg: 'a:1', rtrn: [ { a: 1 } ] },
+        { arg: 'a:1;b:0', rtrn: [ { a: 1, b: 0 } ] },
+        { arg: 'a:1;b:0|c:1', rtrn: [ { a: 1, b: 0 }, { c: 1 } ] },
+      ];
 
-      expect( parsedTags ).toStrictEqual( { a: 1 } );
+      payloads.forEach( ( { arg, rtrn } ) => {
+        const { LOG_TAGS: parsedTags } = getEnvVarsNS.getLoggerEnvVars( {
+          env: {
+            [ getEnvVarsNS.loggerEnvVarNames.LOG_TAGS ]: arg,
+          },
+        } );
+
+        expect( parsedTags ).toStrictEqual( rtrn );
+      } );
     } );
 
     test( 'correctly extracts LOG_TAGS from customized env var name', () => {
@@ -116,7 +136,7 @@ describe( 'getEnvVarsNS', () => {
         },
       } );
 
-      expect( LOG_TAGS ).toStrictEqual( { a: 1 } );
+      expect( LOG_TAGS ).toStrictEqual( [ { a: 1 } ] );
     } );
   } );
 
@@ -140,27 +160,27 @@ describe( 'filterByTagsRaw', () => {
   } );
 
   test( 'allows untagged info when there is a restricted tag in env', () => {
-    expect( filterByLogTags( [ [ 'sometag', 0 ] ], {} ) ).toBe( true );
+    expect( filterByLogTags( [ { sometag: 0 } ], {} ) ).toBe( true );
   } );
 
   test( 'allows tagged info that does not include restricted tag from env', () => {
-    expect( filterByLogTags( [ [ 'sometag', 0 ] ], { tags: [ 'test' ] } ) ).toBe( true );
+    expect( filterByLogTags( [ { sometag: 0 } ], { tags: [ 'test' ] } ) ).toBe( true );
   } );
 
   test( 'disallows tagged info that has restricted tag', () => {
     const restrictedTag = 'sometag';
-    const res = filterByLogTags( [ [ restrictedTag, 0 ] ], { tags: [ restrictedTag ] } );
+    const res = filterByLogTags( [ { [ restrictedTag ]: 0 } ], { tags: [ restrictedTag ] } );
 
     expect( res ).toBe( false );
   } );
 
   test( 'disallows tagged info that does not have required tag', () => {
-    expect( filterByLogTags( [ [ 'sometag', 1 ] ], { tags: [ 'another' ] } ) ).toBe( false );
+    expect( filterByLogTags( [ { sometag: 1 } ], { tags: [ 'another' ] } ) ).toBe( false );
   } );
 
   test( 'allows tagged info that has required tag', () => {
     const requiredTag = 'sometag';
-    expect( filterByLogTags( [ [ requiredTag, 1 ] ], { tags: [ requiredTag ] } ) ).toBe( true );
+    expect( filterByLogTags( [ { [ requiredTag ]: 1 } ], { tags: [ requiredTag ] } ) ).toBe( true );
   } );
 
   test( 'disallows info that has restricted tag even though it also has required one', () => {
@@ -169,9 +189,32 @@ describe( 'filterByTagsRaw', () => {
 
     expect(
       filterByLogTags(
-        [ [ requiredTag, 1 ], [ restrictedTag, 0 ] ],
+        [ { [ requiredTag ]: 1, [ restrictedTag ]: 0 } ],
         { tags: [ requiredTag, restrictedTag ] },
       ),
     ).toBe( false );
+  } );
+
+  test( 'disallows info that has restricted tag at least in one or segment', () => {
+    const requiredTag = 'required';
+    const restrictedTag = 'restricted';
+
+    expect(
+      filterByLogTags(
+        [ { [ requiredTag ]: 1 }, { [ restrictedTag ]: 0 } ],
+        { tags: [ requiredTag, restrictedTag ] },
+      ),
+    ).toBe( false );
+  } );
+
+  test( 'allows info that matches no restricted tags and has at least one matching orSegemnt', () => {
+    const requiredTag = 'required';
+
+    expect(
+      filterByLogTags(
+        [ { a: 1 }, { [ requiredTag ]: 1 } ],
+        { tags: [ requiredTag ] },
+      ),
+    ).toBe( true );
   } );
 } );
