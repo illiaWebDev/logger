@@ -7,11 +7,14 @@ import { filterByLogTags } from './Logger';
 describe( 'getEnvVarsNS', () => {
   describe( 'getLoggerEnvVars', () => {
     test( 'returns correct defaults if env does not provide necessary variables', () => {
-      const { LOG_LEVEL, LOG_TAGS } = getEnvVarsNS.getLoggerEnvVars( { env: {} } );
+      const { LOG_LEVEL, LOG_TAGS, LOG_IGNORE_TAGS_IF_GTE_SEVERITY } = getEnvVarsNS.getLoggerEnvVars( { env: {} } );
 
       expect( LOG_LEVEL ).toBe( 'error' );
       expect( LOG_TAGS ).toStrictEqual( [] );
+      expect( LOG_IGNORE_TAGS_IF_GTE_SEVERITY ).toBe( undefined );
     } );
+
+    // ===================================================================================
 
     test( 'log level fallbacks to "error" for incorrect severity in env', () => {
       const { LOG_LEVEL } = getEnvVarsNS.getLoggerEnvVars( {
@@ -138,14 +141,67 @@ describe( 'getEnvVarsNS', () => {
 
       expect( LOG_TAGS ).toStrictEqual( [ { a: 1 } ] );
     } );
+
+    // ===================================================================================
+
+    test( 'ignore gte severity fallbacks to undefined for incorrect severity in env', () => {
+      const { LOG_IGNORE_TAGS_IF_GTE_SEVERITY } = getEnvVarsNS.getLoggerEnvVars( {
+        env: {
+          [ getEnvVarsNS.loggerEnvVarNames.LOG_IGNORE_TAGS_IF_GTE_SEVERITY ]: 'does not exist',
+        },
+      } );
+
+      expect( LOG_IGNORE_TAGS_IF_GTE_SEVERITY ).toBe( undefined );
+    } );
+
+    test( 'extracts correct ignore gte severity from env', () => {
+      const allowedLogLevels: getEnvVarsNS.LoggerEnvVars[ 'LOG_IGNORE_TAGS_IF_GTE_SEVERITY' ][] = [
+        'error',
+        'warn',
+        'info',
+        'http',
+        'verbose',
+        'debug',
+        'silly',
+      ];
+
+      allowedLogLevels.forEach( level => {
+        const { LOG_IGNORE_TAGS_IF_GTE_SEVERITY } = getEnvVarsNS.getLoggerEnvVars( {
+          env: {
+            [ getEnvVarsNS.loggerEnvVarNames.LOG_IGNORE_TAGS_IF_GTE_SEVERITY ]: level,
+          },
+        } );
+
+        expect( LOG_IGNORE_TAGS_IF_GTE_SEVERITY ).toBe( level );
+      } );
+    } );
+
+    test( 'correctly extracts LOG_IGNORE_TAGS_IF_GTE_SEVERITY from customized env var name', () => {
+      const customizedEnvVarName = 'API_LOG_IGNORE_TAGS_IF_GTE_SEVERITY';
+      const { LOG_IGNORE_TAGS_IF_GTE_SEVERITY } = getEnvVarsNS.getLoggerEnvVars( {
+        env: {
+          [ customizedEnvVarName ]: 'info',
+        },
+        envVarNames: {
+          LOG_IGNORE_TAGS_IF_GTE_SEVERITY: customizedEnvVarName,
+        },
+      } );
+
+      expect( LOG_IGNORE_TAGS_IF_GTE_SEVERITY ).toBe( 'info' );
+    } );
   } );
 
   describe( 'getPartialLoggerEnvVars', () => {
     test( 'returns correct defaults if env does not provide necessary variables', () => {
-      const { LOG_LEVEL, LOG_TAGS } = getEnvVarsNS.getPartialLoggerEnvVars( { env: {} } );
+      const {
+        LOG_LEVEL,
+        LOG_TAGS,
+        LOG_IGNORE_TAGS_IF_GTE_SEVERITY,
+      } = getEnvVarsNS.getPartialLoggerEnvVars( { env: {} } );
 
       expect( LOG_LEVEL ).toBeUndefined( );
       expect( LOG_TAGS ).toBeUndefined( );
+      expect( LOG_IGNORE_TAGS_IF_GTE_SEVERITY ).toBeUndefined( );
     } );
   } );
 } );
@@ -216,5 +272,31 @@ describe( 'filterByTagsRaw', () => {
         { tags: [ requiredTag ] },
       ),
     ).toBe( true );
+  } );
+
+  test( 'ignores tags for severity gte to some value', () => {
+    const levels: getEnvVarsNS.LoggerEnvVars[ 'LOG_IGNORE_TAGS_IF_GTE_SEVERITY' ][] = [
+      'error', 'warn', 'info',
+    ];
+
+    levels.forEach( level => (
+      expect(
+        filterByLogTags(
+          [ { sometagname: 1 } ],
+          { tags: [ 'wontmatch' ], level },
+          'info',
+        ),
+      ).toBe( true )
+    ) );
+  } );
+
+  test( 'still checks tags if message severity is less than "ignoreTagsIfGteSeverity"', () => {
+    expect(
+      filterByLogTags(
+        [ { sometagname: 1 } ],
+        { tags: [ 'wontmatch' ], level: 'debug' },
+        'info',
+      ),
+    ).toBe( false );
   } );
 } );

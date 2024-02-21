@@ -1,6 +1,7 @@
 export const loggerEnvVarNames = {
   LOG_LEVEL: 'LOG_LEVEL',
   LOG_TAGS: 'LOG_TAGS',
+  LOG_IGNORE_TAGS_IF_GTE_SEVERITY: 'LOG_IGNORE_TAGS_IF_GTE_SEVERITY',
 } as const;
 
 export type LoggerEnvVars = {
@@ -60,11 +61,18 @@ export type LoggerEnvVars = {
    * @example [{ tag1: 0, tag2: 1 }, { tag3: 0, tag4: 1 }]
    */
   [ loggerEnvVarNames.LOG_TAGS ]: Array< Record< string, 0 | 1 > >;
+  [ loggerEnvVarNames.LOG_IGNORE_TAGS_IF_GTE_SEVERITY ]?: Exclude< LoggerEnvVars[ 'LOG_LEVEL' ], 'off' >
 };
 
-const levels: LoggerEnvVars[ 'LOG_LEVEL' ][] = [
+
+export const levels: LoggerEnvVars[ 'LOG_LEVEL' ][] = [
   'error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly', 'off',
 ];
+
+
+const isLogLevel = ( v: string ): v is LoggerEnvVars[ 'LOG_LEVEL' ] => (
+  levels.indexOf( v as typeof levels[0] ) !== -1
+);
 
 export type GetLoggerEnvVarsArg = {
   env: Record< string, string | undefined >;
@@ -77,37 +85,36 @@ export type GetLoggerEnvVarsArg = {
    * WEBSITE_LOG_LEVEL. That's why we need this property
    */
   envVarNames?: {
-    [ loggerEnvVarNames.LOG_LEVEL ]: string;
-    [ loggerEnvVarNames.LOG_TAGS ]: string;
+    [ loggerEnvVarNames.LOG_LEVEL ]?: string;
+    [ loggerEnvVarNames.LOG_TAGS ]?: string;
+    [ loggerEnvVarNames.LOG_IGNORE_TAGS_IF_GTE_SEVERITY ]?: string;
   };
 };
 
 /**
  * this should be used when we implement reinit \
  * strategies, as for reinit we sometimes want to \
- * have tags or level as undefined, as that means\
+ * have tags, level or ignore as undefined, as that means\
  * "don't override previous value"
  */
 export const getPartialLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsArg ): Partial< LoggerEnvVars > => ( {
   [ loggerEnvVarNames.LOG_LEVEL ]: ( () => {
-    const logLevelEnvVarName = envVarNames === undefined
-      ? loggerEnvVarNames.LOG_LEVEL
-      : envVarNames.LOG_LEVEL;
+    const logLevelEnvVarName = ( envVarNames !== undefined && envVarNames.LOG_LEVEL !== undefined )
+      ? envVarNames.LOG_LEVEL
+      : loggerEnvVarNames.LOG_LEVEL;
 
     const maybeLevel = env[ logLevelEnvVarName ];
 
-    if ( maybeLevel === undefined || levels.indexOf( maybeLevel as typeof levels[0] ) === -1 ) {
+    if ( maybeLevel === undefined || !( isLogLevel( maybeLevel ) ) ) {
       return undefined;
     }
 
-    const typedLevel = maybeLevel as typeof levels[0];
-
-    return typedLevel;
+    return maybeLevel;
   } )(),
   [ loggerEnvVarNames.LOG_TAGS ]: ( () => {
-    const logTagsEnvVarName = envVarNames === undefined
-      ? loggerEnvVarNames.LOG_TAGS
-      : envVarNames.LOG_TAGS;
+    const logTagsEnvVarName = ( envVarNames !== undefined && envVarNames.LOG_TAGS !== undefined )
+      ? envVarNames.LOG_TAGS
+      : loggerEnvVarNames.LOG_TAGS;
 
     const v = env[ logTagsEnvVarName ];
     if ( v === undefined ) return undefined;
@@ -132,10 +139,25 @@ export const getPartialLoggerEnvVars = ( { env, envVarNames }: GetLoggerEnvVarsA
 
     return logTags.length === 0 ? undefined : logTags;
   } )(),
+  [ loggerEnvVarNames.LOG_IGNORE_TAGS_IF_GTE_SEVERITY ]: ( () => {
+    const logLevelEnvVarName = (
+      ( envVarNames !== undefined && envVarNames.LOG_IGNORE_TAGS_IF_GTE_SEVERITY !== undefined )
+        ? envVarNames.LOG_IGNORE_TAGS_IF_GTE_SEVERITY
+        : loggerEnvVarNames.LOG_IGNORE_TAGS_IF_GTE_SEVERITY
+    );
+
+    const maybeLevel = env[ logLevelEnvVarName ];
+
+    if ( maybeLevel === undefined || !( isLogLevel( maybeLevel ) ) || maybeLevel === 'off' ) {
+      return undefined;
+    }
+
+    return maybeLevel;
+  } )(),
 } );
 
 export const getLoggerEnvVars = ( arg: GetLoggerEnvVarsArg ): LoggerEnvVars => {
-  const { LOG_LEVEL, LOG_TAGS } = getPartialLoggerEnvVars( arg );
+  const { LOG_LEVEL, LOG_TAGS, LOG_IGNORE_TAGS_IF_GTE_SEVERITY } = getPartialLoggerEnvVars( arg );
 
   return {
     [ loggerEnvVarNames.LOG_LEVEL ]: LOG_LEVEL === undefined
@@ -144,5 +166,6 @@ export const getLoggerEnvVars = ( arg: GetLoggerEnvVarsArg ): LoggerEnvVars => {
     [ loggerEnvVarNames.LOG_TAGS ]: LOG_TAGS === undefined
       ? []
       : LOG_TAGS,
+    [ loggerEnvVarNames.LOG_IGNORE_TAGS_IF_GTE_SEVERITY ]: LOG_IGNORE_TAGS_IF_GTE_SEVERITY,
   };
 };

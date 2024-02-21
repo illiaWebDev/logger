@@ -1,5 +1,5 @@
 import { createLogger, format, transports } from 'winston';
-import type { LoggerEnvVars } from './getLoggerEnvVars';
+import { LoggerEnvVars, levels } from './getLoggerEnvVars';
 
 
 // ===================================================================================
@@ -40,6 +40,20 @@ export type LoggerConstructorArg = {
   /** @see https://github.com/winstonjs/winston#logging-levels */
   level: LoggerEnvVars[ 'LOG_LEVEL' ];
   tags: LoggerEnvVars[ 'LOG_TAGS' ];
+  /**
+   * while log filtering is useful for when we want to see\
+   * "debug" logs but only from part of the applicaiton (as lots\
+   * of those can be logging with "debug" severity), perhaps\
+   * there is something else. It seems that there also should\
+   * exist the ability to say that "okay, I did specified those\
+   * tags and that severity level I am currently interested in,\
+   * BUT we also want severity from this and higher to be logged\
+   * ignoring the tags". E.g. we may want to look at info logs\
+   * from user auth part of the app, but we also want to see \
+   * ANY "warn" or "error" level logs from wherever. This is \
+   * what this config setting does.
+   */
+  ignoreTagsIfGteSeverity?: LoggerEnvVars[ 'LOG_IGNORE_TAGS_IF_GTE_SEVERITY' ];
 };
 
 
@@ -71,10 +85,24 @@ const defaultLogger = createLogger();
 /**
  * @returns `false` - filter out this log call, `true` - continue with this call
  */
-export const filterByLogTags = ( logTags: LoggerEnvVars[ 'LOG_TAGS' ], typedInfo: LogInfo ): boolean => {
+export const filterByLogTags = (
+  logTags: LoggerEnvVars[ 'LOG_TAGS' ],
+  typedInfo: LogInfo,
+  ignoreTagsIfGteSeverity?: LoggerEnvVars[ 'LOG_IGNORE_TAGS_IF_GTE_SEVERITY' ],
+): boolean => {
   /** no logTags configured - allow logging everything */
   if ( logTags.length === 0 ) return true;
 
+  /**
+   * if we have ignoreTagsIfGteSeverity present, let's check if typedInfo.level\
+   * is more severe and if it is = we can return true right away
+   */
+  if ( ignoreTagsIfGteSeverity !== undefined ) {
+    const ignoreTagsSevIndex = levels.indexOf( ignoreTagsIfGteSeverity );
+    const typedInfoSevIndex = levels.indexOf( typedInfo.level || 'debug' );
+
+    if ( typedInfoSevIndex <= ignoreTagsSevIndex ) return true;
+  }
 
   const { tags: infoTags } = typedInfo;
   const infoTagsHash = infoTags === undefined
@@ -126,7 +154,7 @@ export class Logger {
   reinit( arg: Partial< LoggerConstructorArg > ) {
     if ( Object.keys( arg ).length === 0 ) return;
 
-    const { level, tags } = arg;
+    const { level, tags, ignoreTagsIfGteSeverity } = arg;
     const { __latestLoggerConstructorArg: latestArg } = this;
 
 
@@ -140,8 +168,16 @@ export class Logger {
 
       return latestArg === null ? [] : latestArg.tags;
     } )();
+    const finalIgnoreTagsIfGte: LoggerConstructorArg[ 'ignoreTagsIfGteSeverity' ] = ( () => {
+      if ( ignoreTagsIfGteSeverity !== undefined ) return ignoreTagsIfGteSeverity;
 
-    const filterByTags = format( info => filterByLogTags( finalTags, info as LogInfo ) && info );
+      return latestArg === null ? undefined : latestArg.ignoreTagsIfGteSeverity;
+    } )();
+
+
+    const filterByTags = format(
+      info => filterByLogTags( finalTags, info as LogInfo, finalIgnoreTagsIfGte ) && info,
+    );
 
     const logger = createLogger( {
       format: format.combine(
