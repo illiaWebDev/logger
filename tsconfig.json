@@ -9,9 +9,11 @@
     "noUncheckedIndexedAccess": true,
     "outDir": "./dist",
     "rootDir": "./src",
+    "esModuleInterop": true,
   },
   "files": [
     "./src/index.ts",
-    "./src/_.test.ts"
+    "./src/_.test.ts",
+    "./src/demo/index.ts",
   ]
 }

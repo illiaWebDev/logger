@@ -58,7 +58,14 @@ export type LoggerConstructorArg = {
 
 
 export type LogInfo = {
-  msg?: string;
+  msg?: (
+    | { type: 'string'; value: string }
+    | {
+      type: 'adaptive';
+      args: Array<{ param: string; value: unknown }>;
+      body: string;
+    }
+  );
   /**
    * used to describe log call in more detail, e.g.
    * - what service this corresponds to
@@ -158,17 +165,17 @@ export class Logger {
     const { __latestLoggerConstructorArg: latestArg } = this;
 
 
-    const finalLogLevel: LoggerConstructorArg[ 'level' ] = ( () => {
+    const finalLogLevelInConfig: LoggerConstructorArg[ 'level' ] = ( () => {
       if ( level !== undefined ) return level;
 
       return latestArg === null ? 'error' : latestArg.level;
     } )();
-    const finalTags: LoggerConstructorArg[ 'tags' ] = ( () => {
+    const finalTagsInConfig: LoggerConstructorArg[ 'tags' ] = ( () => {
       if ( tags !== undefined ) return tags;
 
       return latestArg === null ? [] : latestArg.tags;
     } )();
-    const finalIgnoreTagsIfGte: LoggerConstructorArg[ 'ignoreTagsIfGteSeverity' ] = ( () => {
+    const finalIgnoreTagsIfGteInConfig: LoggerConstructorArg[ 'ignoreTagsIfGteSeverity' ] = ( () => {
       if ( ignoreTagsIfGteSeverity !== undefined ) return ignoreTagsIfGteSeverity;
 
       return latestArg === null ? undefined : latestArg.ignoreTagsIfGteSeverity;
@@ -176,23 +183,62 @@ export class Logger {
 
 
     const filterByTags = format(
-      info => filterByLogTags( finalTags, info as LogInfo, finalIgnoreTagsIfGte ) && info,
+      info => filterByLogTags( finalTagsInConfig, info as LogInfo, finalIgnoreTagsIfGteInConfig ) && info,
+    );
+    const transformMsg = format(
+      info => {
+        const { msg } = info as LogInfo;
+
+        ( () => {
+          if ( msg === undefined ) return;
+
+          if ( msg.type === 'string' ) {
+            // eslint-disable-next-line no-param-reassign
+            info.msg = msg.value;
+
+            return;
+          }
+
+          const { args, body } = msg;
+          const params = args.map( it => it.param );
+          const vals = args.map( it => it.value );
+          // eslint-disable-next-line @typescript-eslint/no-implied-eval
+          const func = new Function( ...params.concat( body ) );
+
+          try {
+            // eslint-disable-next-line no-param-reassign
+            info.msg = String( func( ...vals ) );
+          } catch ( e ) {
+            const errMsg = ( () => {
+              if ( !( e instanceof Error ) ) return JSON.stringify( e );
+
+              return e.message;
+            } )();
+
+            // eslint-disable-next-line no-param-reassign
+            info.msg = errMsg;
+          }
+        } )();
+
+        return info;
+      },
     );
 
     const logger = createLogger( {
       format: format.combine(
         filterByTags(),
+        transformMsg(),
         format.timestamp(),
         format.json(),
       ),
       transports: [ new transports.Console() ],
-      ...( finalLogLevel === 'off' ? { silent: true } : { level: finalLogLevel } ),
+      ...( finalLogLevelInConfig === 'off' ? { silent: true } : { level: finalLogLevelInConfig } ),
     } );
 
     this.__logger = logger;
     this.__latestLoggerConstructorArg = {
-      level: finalLogLevel,
-      tags: finalTags,
+      level: finalLogLevelInConfig,
+      tags: finalTagsInConfig,
     };
   }
 
