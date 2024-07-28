@@ -54,6 +54,7 @@ export type LoggerConstructorArg = {
    * what this config setting does.
    */
   ignoreTagsIfGteSeverity?: LoggerEnvVars[ 'LOG_IGNORE_TAGS_IF_GTE_SEVERITY' ];
+  bodiesForAdaptive?: Record< string, string | null >;
 };
 
 
@@ -63,7 +64,7 @@ export type LogInfo = {
     | {
       type: 'adaptive';
       args: Array<{ param: string; value: unknown }>;
-      body: string;
+      id: string;
     }
   );
   /**
@@ -161,7 +162,12 @@ export class Logger {
   reinit( arg: Partial< LoggerConstructorArg > ) {
     if ( Object.keys( arg ).length === 0 ) return;
 
-    const { level, tags, ignoreTagsIfGteSeverity } = arg;
+    const {
+      level,
+      tags,
+      ignoreTagsIfGteSeverity,
+      bodiesForAdaptive,
+    } = arg;
     const { __latestLoggerConstructorArg: latestArg } = this;
 
 
@@ -179,6 +185,18 @@ export class Logger {
       if ( ignoreTagsIfGteSeverity !== undefined ) return ignoreTagsIfGteSeverity;
 
       return latestArg === null ? undefined : latestArg.ignoreTagsIfGteSeverity;
+    } )();
+    const finalBodiesForAdaptive: LoggerConstructorArg[ 'bodiesForAdaptive' ] = ( () => {
+      const lastBodiesForAdaptive = latestArg === null ? undefined : latestArg.bodiesForAdaptive;
+
+      if ( lastBodiesForAdaptive === undefined ) {
+        return bodiesForAdaptive;
+      }
+
+      return {
+        ...lastBodiesForAdaptive,
+        ...bodiesForAdaptive,
+      };
     } )();
 
 
@@ -199,11 +217,29 @@ export class Logger {
             return;
           }
 
-          const { args, body } = msg;
+          /**
+           * 100% "adaptive" here, but if finalMapOfBodiesForAdaptive is\
+           * undefined, no matter what we do - we can't properly proceed.\
+           * So we will fall back to an empty message. Same should happen\
+           * if there is no matching entry in finalMapOfBodiesForAdaptive.
+           */
+          const definedBodiesForAdaptive: NonNullable< typeof finalBodiesForAdaptive > = (
+            finalBodiesForAdaptive || {}
+          );
+          const funcBody = definedBodiesForAdaptive[ msg.id ];
+
+          if ( funcBody === undefined || funcBody === null ) {
+            // eslint-disable-next-line no-param-reassign
+            info.msg = '';
+
+            return;
+          }
+
+          const { args } = msg;
           const params = args.map( it => it.param );
           const vals = args.map( it => it.value );
           // eslint-disable-next-line @typescript-eslint/no-implied-eval
-          const func = new Function( ...params.concat( body ) );
+          const func = new Function( ...params.concat( funcBody ) );
 
           try {
             // eslint-disable-next-line no-param-reassign
@@ -239,6 +275,8 @@ export class Logger {
     this.__latestLoggerConstructorArg = {
       level: finalLogLevelInConfig,
       tags: finalTagsInConfig,
+      ignoreTagsIfGteSeverity: finalIgnoreTagsIfGteInConfig,
+      bodiesForAdaptive: finalBodiesForAdaptive,
     };
   }
 
