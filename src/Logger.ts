@@ -1,4 +1,6 @@
 import { createLogger, format, transports } from 'winston';
+import acorn from 'acorn';
+import { ValidateFunction } from 'ajv';
 import { LoggerEnvVars, levels } from './getLoggerEnvVars';
 
 
@@ -55,6 +57,7 @@ export type LoggerConstructorArg = {
    */
   ignoreTagsIfGteSeverity?: LoggerEnvVars[ 'LOG_IGNORE_TAGS_IF_GTE_SEVERITY' ];
   bodiesForAdaptive?: Record< string, string | null >;
+  adpBodyValidators?: Record< string, ValidateFunction >;
 };
 
 
@@ -167,6 +170,7 @@ export class Logger {
       tags,
       ignoreTagsIfGteSeverity,
       bodiesForAdaptive,
+      adpBodyValidators,
     } = arg;
     const { __latestLoggerConstructorArg: latestArg } = this;
 
@@ -196,6 +200,16 @@ export class Logger {
       return {
         ...lastBodiesForAdaptive,
         ...bodiesForAdaptive,
+      };
+    } )();
+    const finalAdpBodyValidators: LoggerConstructorArg[ 'adpBodyValidators' ] = ( () => {
+      const latestAdpBodyValidators = latestArg === null ? undefined : latestArg.adpBodyValidators;
+
+      if ( latestAdpBodyValidators === undefined ) return adpBodyValidators;
+
+      return {
+        ...latestAdpBodyValidators,
+        ...adpBodyValidators,
       };
     } )();
 
@@ -238,17 +252,31 @@ export class Logger {
           const { args } = msg;
           const params = args.map( it => it.param );
           const vals = args.map( it => it.value );
-          // eslint-disable-next-line @typescript-eslint/no-implied-eval
-          const func = new Function( ...params.concat( funcBody ) );
+
+          const bodyValidator = ( finalAdpBodyValidators || {} )[ msg.id ];
 
           try {
+            const ast = acorn.parse( funcBody, { ecmaVersion: 2024, allowReturnOutsideFunction: true } );
+            console.log( 5555, 'ast', JSON.stringify( ast, null, 2 ) );
+
+            if ( bodyValidator && bodyValidator( ast ) === false ) {
+              // eslint-disable-next-line no-param-reassign
+              info.msg = `Logger - (msg.id: ${ msg.id }) |`
+                + ` Body validation failed: ${ JSON.stringify( bodyValidator.errors ) }`;
+
+              return;
+            }
+            // eslint-disable-next-line @typescript-eslint/no-implied-eval
+            const func = new Function( ...params.concat( `return ${ funcBody }` ) );
+
             // eslint-disable-next-line no-param-reassign
             info.msg = String( func( ...vals ) );
           } catch ( e ) {
             const errMsg = ( () => {
               if ( !( e instanceof Error ) ) return JSON.stringify( e );
+              if ( e instanceof SyntaxError ) return `Logger - syntax error (msg.id: ${ msg.id }) | ${ e.message }`;
 
-              return e.message;
+              return `Logger - (msg.id: ${ msg.id }) | ${ e.message }`;
             } )();
 
             // eslint-disable-next-line no-param-reassign
