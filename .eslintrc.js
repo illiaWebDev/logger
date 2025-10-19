@@ -27,7 +27,8 @@ const config = {
     'template-curly-spacing': ['error', 'always'],
     'array-bracket-spacing': ['warn', 'always'],
     'object-curly-newline': 'off',
-    "no-underscore-dangle": "off"
+    'no-underscore-dangle': 'off',
+    'no-void': 'off',
   }
 };
 

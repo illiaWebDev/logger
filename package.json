@@ -1,6 +1,6 @@
 {
   "name": "@illia-web-dev/logger",
-  "version": "0.0.10",
+  "version": "0.0.10-adaptive-logging-1",
   "description": "",
   "types": "./dist/index.d.ts",
   "main": "./dist/index.js",
@@ -17,7 +17,7 @@
     "publish-package:test:pack": "npm run publish-package:test:pack:prepush-and-transpile && npm pack",
     "publish-package:test:unpack-archive": "tar zxvf",
     "publish-package:test:clean": "rm -rf ./package && rm -rf illia-web-dev-logger*",
-    "publish-package:publish": "npm run publish-package:test:pack:prepush-and-transpile && npm publish --access public"
+    "publish-package:publish": "npm run publish-package:test:pack:prepush-and-transpile && npm publish --access public --tag adaptive-logging"
   },
   "repository": {
     "type": "git",
@@ -32,7 +32,9 @@
   "homepage": "https://github.com/illiaWebDev/logger#readme",
   "peerDependencies": {
     "tslib": ">=2",
-    "winston": ">=3"
+    "winston": ">=3",
+    "acorn": ">=8",
+    "ajv": ">=8"
   },
   "devDependencies": {
     "@jest/globals": "29.5.0",
@@ -51,9 +53,5 @@
     "ts-node": "10.9.2",
     "typescript": "4.9.5",
     "winston": "3.9.0"
-  },
-  "dependencies": {
-    "acorn": "^8.12.1",
-    "ajv": "^8.17.1"
   }
 }
