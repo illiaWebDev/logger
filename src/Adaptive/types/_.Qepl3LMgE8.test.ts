@@ -8,7 +8,7 @@ describe( 'areConfigTagsEmpty', () => {
     { arg: [], rtrn: true },
     { arg: [ [] ], rtrn: true },
     { arg: [ [], [], [] ], rtrn: true },
-    { arg: [ [ { tag: 'a', mode: 'exclude' } ] ], rtrn: false },
+    { arg: [ [ { tag: 'a', mode: 'excl' } ] ], rtrn: false },
   ];
 
   payloads.forEach( ( p, i ) => (

@@ -29,6 +29,7 @@ const config = {
     'object-curly-newline': 'off',
     'no-underscore-dangle': 'off',
     'no-void': 'off',
+    '@typescript-eslint/naming-convention': 'off',
   }
 };
 

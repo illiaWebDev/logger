@@ -1,7 +1,8 @@
 import { createLogger, format, transports, Logger } from 'winston';
 import type { ConfigSeverityLevel, LogSeverityLevel } from '../common';
 import type { ConfigT, LogInfo, MessageT } from './types';
-import {} from './filterByTags';
+import { } from './filterByTags';
+
 
 export class AdaptiveLogger {
   private __logger: Logger = createLogger();

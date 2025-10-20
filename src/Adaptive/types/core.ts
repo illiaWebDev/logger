@@ -16,7 +16,7 @@ export type LogInfo = {
 };
 
 
-export type TagsAndSegment = { tag: string; mode: 'include' | 'exclude' };
+export type TagsAndSegment = { tag: string; mode: 'incl' | 'excl' };
 export type TagsOrSegment = TagsAndSegment[];
 export type ConfigT = {
   tags: TagsOrSegment[];
