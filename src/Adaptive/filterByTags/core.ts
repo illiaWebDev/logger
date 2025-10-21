@@ -17,6 +17,12 @@ const isExplicitlyIncluded = ( tag: string, configTags: ConfigT['tags'] ): boole
   hasExplicitExlcOrIncl( tag, configTags, 'incl' )
 );
 
+const hasAtLeastOneInclude = ( configTags: ConfigT['tags'] ): boolean => (
+  configTags.some( orSegment => (
+    orSegment.some( andSegment => andSegment.mode === 'incl' )
+  ) )
+);
+
 /**
  * @returns `false` - filter out this log call, `true` - continue with this call
  */
@@ -48,7 +54,11 @@ export const filterByTags = (
   // filter our this log call
   if ( T_incl.some( it => isExplicitlyExcluded( it, configTags ) ) ) return false;
 
-  // no tag is explicitly excluded, now let's check if at least one tag is
+  // if there is no explicit include at all in configTags => also continue
+  if ( hasAtLeastOneInclude( configTags ) === false ) return true;
+
+  // no tag is explicitly excluded, and there is at least one
+  // explicit include. Now let's check if at least one tag is
   // explicitly included and if there is such tag - continue
   if ( T_incl.some( tag => isExplicitlyIncluded( tag, configTags ) ) ) return true;
 
