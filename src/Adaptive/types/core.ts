@@ -8,14 +8,14 @@ export type MessageTDynamic = {
   ctx: Record< string, unknown >;
   bodyId: string;
 };
-export type MessageT = (
+export type M_du_T = (
   | MessageTStatic
   | MessageTDynamic
 );
-export const isMessageT = ( v: unknown ): v is MessageT => {
+export const isM_du = ( v: unknown ): v is M_du_T => {
   if ( typeof v !== 'object' || v === null || !( 'type' in v ) ) return false;
 
-  const { type } = v as Partial< Pick< MessageT, 'type' > >;
+  const { type } = v as Partial< Pick< M_du_T, 'type' > >;
   if ( type === 'static' ) {
     if ( Object.keys( v ).length !== 2 ) return false;
 
@@ -34,7 +34,7 @@ export const isMessageT = ( v: unknown ): v is MessageT => {
 };
 export type LogInfo = {
   Sev: LogSeverityLevel;
-  M_du: MessageT;
+  M_du: M_du_T;
   T_incl: string[];
 };
 export const isLogInfo = ( v: unknown ): v is LogInfo => {
@@ -43,9 +43,21 @@ export const isLogInfo = ( v: unknown ): v is LogInfo => {
   const { M_du, Sev, T_incl } = v as { [ K in keyof LogInfo ]?: unknown };
 
   return true
-    && isMessageT( M_du )
+    && isM_du( M_du )
     && isLogSeverityLevel( Sev )
     && ( Array.isArray( T_incl ) && T_incl.every( it => typeof it === 'string' ) );
+};
+
+export type LogInfoExtra = LogInfo & { message: string; level: LogInfo['Sev'] };
+export const isLogInfoExtra = ( v: unknown ): v is LogInfoExtra => {
+  if ( typeof v !== 'object' || v === null ) return false;
+
+  const { level, message, ...rest } = v as { [ K in keyof LogInfoExtra ]?: unknown };
+
+  return true
+    && isLogSeverityLevel( level )
+    && typeof message === 'string'
+    && isLogInfo( rest );
 };
 
 

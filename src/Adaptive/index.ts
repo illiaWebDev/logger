@@ -1,7 +1,8 @@
 import { createLogger, format, transports, Logger } from 'winston';
 import type { ConfigSeverityLevel, LogSeverityLevel } from '../common';
-import { isLogInfo, type ConfigT, type LogInfo, type MessageT } from './types';
+import { isLogInfo, ConfigT, LogInfo, M_du_T, LogInfoExtra } from './types';
 import { filterByTags as filterBytagsF } from './filterByTags';
+import { mapM_du } from './mapM_du';
 
 
 export class AdaptiveLogger {
@@ -15,7 +16,7 @@ export class AdaptiveLogger {
    */
   private constructor() { /** */ }
 
-  public log( Sev: LogSeverityLevel, M_du: MessageT, T_incl: string[] ): void {
+  public log( Sev: LogSeverityLevel, M_du: M_du_T, T_incl: string[] ): void {
     const logInfo: LogInfo = { Sev, M_du, T_incl };
 
     this.__logger.log( Sev, logInfo );
@@ -23,10 +24,10 @@ export class AdaptiveLogger {
 
   public init( Sev: ConfigSeverityLevel, Sev_ign: LogSeverityLevel | null, C: ConfigT ): void {
     const filterByTagsFormat = format(
-      info => {
-        if ( !isLogInfo( info ) ) return false;
+      ( info: unknown ): false | LogInfoExtra => {
+        if ( !isLogInfo( info ) || !filterBytagsF( C.tags, info, Sev_ign || undefined ) ) return false;
 
-        return filterBytagsF( C.tags, info, Sev_ign || undefined ) && info;
+        return { ...info, level: info.Sev, message: '' };
       },
     );
 
