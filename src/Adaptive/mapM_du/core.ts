@@ -1,10 +1,25 @@
+import Ajv from 'ajv';
+import acorn from 'acorn';
 import type { TransformableInfo } from 'logform';
-import type { M_du_T, ConfigT, LogInfo } from '../types';
-import type { LogSeverityLevel } from '../../common';
+import type { ConfigT, LogInfo } from '../types';
+
+
+const ajv = new Ajv();
 
 
 export const mapM_du = ( logInfo: LogInfo, C: ConfigT ): TransformableInfo => {
-  const { M_du, Sev, T_incl } = logInfo;
+  const {
+    M_du,
+    Sev,
+    T_incl,
+    /**
+     * because of how winston operates, this won't be exactly an empty object,\
+     * but rather an object with some special service properties, that allow\
+     * winston to properly log. So we can't just throw away this and have to\
+     * persist it
+     */
+    ...rest
+  } = logInfo;
 
   const message = ( (): string => {
     if ( M_du.type === 'static' ) return M_du.msg;
@@ -18,7 +33,10 @@ export const mapM_du = ( logInfo: LogInfo, C: ConfigT ): TransformableInfo => {
 
       const maybeSchema = M_dyn_schm[ bodyId ];
       if ( maybeSchema !== undefined ) {
-        return '';
+        const validate = ajv.compile( JSON.parse( maybeSchema ) );
+        const ast = acorn.parse( maybeBody, { ecmaVersion: 6, allowReturnOutsideFunction: true } );
+
+        if ( !validate( ast ) ) return '';
       }
 
       // eslint-disable-next-line @typescript-eslint/no-implied-eval
@@ -29,5 +47,5 @@ export const mapM_du = ( logInfo: LogInfo, C: ConfigT ): TransformableInfo => {
     }
   } )();
 
-  return { level: Sev, message, T_incl };
+  return { ...rest, level: Sev, message };
 };

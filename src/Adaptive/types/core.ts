@@ -1,4 +1,3 @@
-import type { JSONSchemaType } from 'ajv';
 import { isLogSeverityLevel, LogSeverityLevel } from '../../common';
 
 
@@ -38,14 +37,15 @@ export type LogInfo = {
   T_incl: string[];
 };
 export const isLogInfo = ( v: unknown ): v is LogInfo => {
-  if ( typeof v !== 'object' || v === null || Object.keys( v ).length !== 3 ) return false;
+  if ( typeof v !== 'object' || v === null ) return false;
 
   const { M_du, Sev, T_incl } = v as { [ K in keyof LogInfo ]?: unknown };
-
-  return true
+  return (
+    true
     && isM_du( M_du )
     && isLogSeverityLevel( Sev )
-    && ( Array.isArray( T_incl ) && T_incl.every( it => typeof it === 'string' ) );
+    && ( Array.isArray( T_incl ) && T_incl.every( it => typeof it === 'string' ) )
+  );
 };
 
 export type LogInfoExtra = LogInfo & { message: string; level: LogInfo['Sev'] };
@@ -66,7 +66,7 @@ export type TagsOrSegment = TagsAndSegment[];
 export type ConfigT = {
   tags: TagsOrSegment[];
   M_dyn: Record< string, string >;
-  M_dyn_schm: Record< string, JSONSchemaType< unknown > >;
+  M_dyn_schm: Record< string, string >;
 };
 export const areConfigTagsEmpty = ( configTags: ConfigT['tags'] ): boolean => (
   configTags.every( orSegment => orSegment.length === 0 )

@@ -11,10 +11,10 @@ const baseInfo: LogInfo = {
 describe( 'filterByTags', () => {
   type Payload = {
     params: Parameters< typeof filterByTags >,
-    rtrn: boolean
+    rtrn: boolean,
   };
   const payloads: Payload[] = [
-    // no tags in config - accep
+    // no tags in config - accept
     { params: [ [], baseInfo ], rtrn: true },
     // no tags in config - accept
     { params: [ [], { ...baseInfo, Sev: 'warn' } ], rtrn: true },

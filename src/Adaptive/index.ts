@@ -1,7 +1,8 @@
 import { createLogger, format, transports, Logger } from 'winston';
+import type { TransformableInfo } from 'logform';
 import type { ConfigSeverityLevel, LogSeverityLevel } from '../common';
 import { isLogInfo, ConfigT, LogInfo, M_du_T, LogInfoExtra } from './types';
-import { filterByTags as filterBytagsF } from './filterByTags';
+import { filterByTags as filterByTagsF } from './filterByTags';
 import { mapM_du } from './mapM_du';
 
 
@@ -25,16 +26,20 @@ export class AdaptiveLogger {
   public init( Sev: ConfigSeverityLevel, Sev_ign: LogSeverityLevel | null, C: ConfigT ): void {
     const filterByTagsFormat = format(
       ( info: unknown ): false | LogInfoExtra => {
-        if ( !isLogInfo( info ) || !filterBytagsF( C.tags, info, Sev_ign || undefined ) ) return false;
+        if ( !isLogInfo( info ) || !filterByTagsF( C.tags, info, Sev_ign || undefined ) ) return false;
 
         return { ...info, level: info.Sev, message: '' };
       },
     );
 
+    const transformMsg = format(
+      ( info: unknown ): false | TransformableInfo => ( isLogInfo( info ) ? mapM_du( info, C ) : false ),
+    );
+
     this.__logger = createLogger( {
       format: format.combine(
         filterByTagsFormat(),
-        // transformMsg(),
+        transformMsg(),
         format.timestamp(),
         format.json(),
       ),
@@ -45,7 +50,7 @@ export class AdaptiveLogger {
 
   // ===================================================================================
 
-  private static __singleton: AdaptiveLogger | null;
+  private static __singleton: AdaptiveLogger | null = null;
 
   public static getAdaptiveLogger(): AdaptiveLogger {
     if ( this.__singleton === null ) {
