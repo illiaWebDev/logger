@@ -47,5 +47,11 @@ export const mapM_du = ( logInfo: LogInfo, C: ConfigT ): TransformableInfo => {
     }
   } )();
 
-  return { ...rest, level: Sev, message };
+  return {
+    ...rest,
+    level: Sev,
+    message,
+    /** we also want to pass this to identify call sties more easily */
+    T_incl,
+  };
 };

@@ -46,13 +46,14 @@ describe( 'mapM_du', () => {
     ( (): Payload => {
       const Sev: LogSeverityLevel = 'warn';
       const msg = 'test';
+      const T_incl: string[] = [];
 
       return {
         params: [
           {
             Sev,
             M_du: { type: 'static', msg },
-            T_incl: [],
+            T_incl,
           },
           {
             M_dyn: {},
@@ -60,18 +61,19 @@ describe( 'mapM_du', () => {
             tags: [],
           },
         ],
-        rtrn: { level: Sev, message: msg },
+        rtrn: { level: Sev, message: msg, T_incl },
       };
     } )(),
     ( (): Payload => {
       const Sev: LogSeverityLevel = 'warn';
+      const T_incl: string[] = [];
 
       return {
         params: [
           {
             Sev,
             M_du: { type: 'dynamic', bodyId: 'non-existent', ctx: {} },
-            T_incl: [],
+            T_incl,
           },
           {
             M_dyn: {},
@@ -79,20 +81,21 @@ describe( 'mapM_du', () => {
             tags: [],
           },
         ],
-        rtrn: { level: Sev, message: '' },
+        rtrn: { level: Sev, message: '', T_incl },
       };
     } )(),
     ( (): Payload => {
       const Sev: LogSeverityLevel = 'warn';
       const prop = 123;
       const bodyId = 'id1';
+      const T_incl: string[] = [];
 
       return {
         params: [
           {
             Sev,
             M_du: { type: 'dynamic', bodyId, ctx: { prop } },
-            T_incl: [],
+            T_incl,
           },
           {
             M_dyn: {
@@ -102,20 +105,21 @@ describe( 'mapM_du', () => {
             tags: [],
           },
         ],
-        rtrn: { level: Sev, message: String( prop ) },
+        rtrn: { level: Sev, message: String( prop ), T_incl },
       };
     } )(),
     ( (): Payload => {
       const Sev: LogSeverityLevel = 'warn';
       const prop = 789;
       const bodyId = 'id1';
+      const T_incl: string[] = [];
 
       return {
         params: [
           {
             Sev,
             M_du: { type: 'dynamic', bodyId, ctx: { prop } },
-            T_incl: [],
+            T_incl,
           },
           {
             M_dyn: {
@@ -127,20 +131,21 @@ describe( 'mapM_du', () => {
             tags: [],
           },
         ],
-        rtrn: { level: Sev, message: String( prop ) },
+        rtrn: { level: Sev, message: String( prop ), T_incl },
       };
     } )(),
     ( (): Payload => {
       const Sev: LogSeverityLevel = 'warn';
       const prop = 15742;
       const bodyId = 'id1';
+      const T_incl: string[] = [];
 
       return {
         params: [
           {
             Sev,
             M_du: { type: 'dynamic', bodyId, ctx: { prop } },
-            T_incl: [],
+            T_incl,
           },
           {
             M_dyn: {
@@ -152,7 +157,7 @@ describe( 'mapM_du', () => {
             tags: [],
           },
         ],
-        rtrn: { level: Sev, message: '' },
+        rtrn: { level: Sev, message: '', T_incl },
       };
     } )(),
   ];
