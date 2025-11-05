@@ -15,7 +15,11 @@ export const isLogSeverityLevel = ( v: unknown ): v is LogSeverityLevel => {
  */
 export const logSeverityLevelsDesc: LogSeverityLevel[] = [ 'error', 'warn', 'info', 'debug' ];
 
-export type ConfigSeverityLevel = LogSeverityLevel | 'off';
+export const CONFIG_SEVERITY_LEVEL_OFF = 'off';
+export type ConfigSeverityLevel = LogSeverityLevel | typeof CONFIG_SEVERITY_LEVEL_OFF;
+export const isConfigSeverityLevel = ( v: unknown ): v is ConfigSeverityLevel => (
+  v === CONFIG_SEVERITY_LEVEL_OFF || isLogSeverityLevel( v )
+);
 
 export const isStrToStrMap = ( v: unknown ): v is Record< string, string > => {
   if ( typeof v !== 'object' || v === null ) return false;
