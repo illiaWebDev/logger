@@ -1,4 +1,4 @@
-import { isLogSeverityLevel, LogSeverityLevel } from '../../common';
+import { isLogSeverityLevel, isStrToStrMap, LogSeverityLevel } from '../../common';
 
 
 export type MessageTStatic = { type: 'static'; msg: string };
@@ -62,11 +62,36 @@ export const isLogInfoExtra = ( v: unknown ): v is LogInfoExtra => {
 
 
 export type TagsAndSegment = { tag: string; mode: 'incl' | 'excl' };
+export const isTagsAndSegment = ( v: unknown ): v is TagsAndSegment => {
+  if ( typeof v !== 'object' || v === null || Object.keys( v ).length !== 2 ) return false;
+
+  const { mode, tag } = v as { [ K in keyof TagsAndSegment ]?: unknown };
+  const typedMode = mode as TagsAndSegment[ 'mode' ] | undefined;
+
+  return true
+    && typeof tag === 'string'
+    && ( typedMode === 'excl' || typedMode === 'incl' );
+};
+
 export type TagsOrSegment = TagsAndSegment[];
+export const isTagsOrSegment = ( v: unknown ): v is TagsOrSegment => (
+  Array.isArray( v ) && v.every( ( it: unknown ) => isTagsAndSegment( it ) )
+);
+
 export type ConfigT = {
   tags: TagsOrSegment[];
   M_dyn: Record< string, string >;
   M_dyn_schm: Record< string, string >;
+};
+export const isConfigT = ( v: unknown ): v is ConfigT => {
+  if ( typeof v !== 'object' || v === null || Object.keys( v ).length !== 3 ) return false;
+
+  const { tags, M_dyn, M_dyn_schm } = v as { [ K in keyof ConfigT ]?: unknown };
+
+  return true
+    && ( Array.isArray( tags ) && tags.every( ( it: unknown ) => isTagsOrSegment( it ) ) )
+    && isStrToStrMap( M_dyn )
+    && isStrToStrMap( M_dyn_schm );
 };
 export const areConfigTagsEmpty = ( configTags: ConfigT['tags'] ): boolean => (
   configTags.every( orSegment => orSegment.length === 0 )
