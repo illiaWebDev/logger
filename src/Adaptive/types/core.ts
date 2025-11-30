@@ -79,6 +79,7 @@ export const isTagsOrSegment = ( v: unknown ): v is TagsOrSegment => (
 );
 
 export type ConfigT = {
+  isProd: boolean;
   tags: TagsOrSegment[];
   M_dyn: Record< string, string >;
   M_dyn_schm: Record< string, string >;
@@ -86,9 +87,10 @@ export type ConfigT = {
 export const isConfigT = ( v: unknown ): v is ConfigT => {
   if ( typeof v !== 'object' || v === null || Object.keys( v ).length !== 3 ) return false;
 
-  const { tags, M_dyn, M_dyn_schm } = v as { [ K in keyof ConfigT ]?: unknown };
+  const { isProd, tags, M_dyn, M_dyn_schm } = v as { [ K in keyof ConfigT ]?: unknown };
 
   return true
+    && typeof isProd === 'boolean'
     && ( Array.isArray( tags ) && tags.every( ( it: unknown ) => isTagsOrSegment( it ) ) )
     && isStrToStrMap( M_dyn )
     && isStrToStrMap( M_dyn_schm );

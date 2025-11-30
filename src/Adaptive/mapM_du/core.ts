@@ -23,6 +23,8 @@ export const mapM_du = ( logInfo: LogInfo, C: ConfigT ): TransformableInfo => {
 
   const message = ( (): string => {
     if ( M_du.type === 'static' ) return M_du.msg;
+    // we won't allow dynamic variant in production as it's too dangerous
+    if ( C.isProd === true ) return '';
 
     try {
       const { ctx, bodyId } = M_du;

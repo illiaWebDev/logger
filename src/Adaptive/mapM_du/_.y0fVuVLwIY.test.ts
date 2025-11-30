@@ -56,6 +56,7 @@ describe( 'mapM_du', () => {
             T_incl,
           },
           {
+            isProd: false,
             M_dyn: {},
             M_dyn_schm: {},
             tags: [],
@@ -76,6 +77,7 @@ describe( 'mapM_du', () => {
             T_incl,
           },
           {
+            isProd: false,
             M_dyn: {},
             M_dyn_schm: {},
             tags: [],
@@ -98,6 +100,7 @@ describe( 'mapM_du', () => {
             T_incl,
           },
           {
+            isProd: false,
             M_dyn: {
               [ bodyId ]: 'return ctx.prop;',
             },
@@ -122,6 +125,7 @@ describe( 'mapM_du', () => {
             T_incl,
           },
           {
+            isProd: false,
             M_dyn: {
               [ bodyId ]: 'return ctx.prop;',
             },
@@ -148,8 +152,37 @@ describe( 'mapM_du', () => {
             T_incl,
           },
           {
+            isProd: false,
             M_dyn: {
               [ bodyId ]: 'return nonCtx.prop;',
+            },
+            M_dyn_schm: {
+              [ bodyId ]: JSON.stringify( jsonSchemaForSimplePropAccessOnCtx ),
+            },
+            tags: [],
+          },
+        ],
+        rtrn: { level: Sev, message: '', T_incl },
+      };
+    } )(),
+    // don't allow dynamic in prod
+    ( (): Payload => {
+      const Sev: LogSeverityLevel = 'warn';
+      const prop = 887491;
+      const bodyId = 'id1';
+      const T_incl: string[] = [];
+
+      return {
+        params: [
+          {
+            Sev,
+            M_du: { type: 'dynamic', bodyId, ctx: { prop } },
+            T_incl,
+          },
+          {
+            isProd: true,
+            M_dyn: {
+              [ bodyId ]: 'return ctx.prop;',
             },
             M_dyn_schm: {
               [ bodyId ]: JSON.stringify( jsonSchemaForSimplePropAccessOnCtx ),

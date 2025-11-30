@@ -7,6 +7,7 @@ logger.init(
   'info',
   null,
   {
+    isProd: false,
     tags: [],
     M_dyn: {
       id1: 'return ctx.headers.authorization',
