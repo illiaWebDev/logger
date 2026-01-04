@@ -85,7 +85,7 @@ export type ConfigT = {
   M_dyn_schm: Record< string, string >;
 };
 export const isConfigT = ( v: unknown ): v is ConfigT => {
-  if ( typeof v !== 'object' || v === null || Object.keys( v ).length !== 3 ) return false;
+  if ( typeof v !== 'object' || v === null || Object.keys( v ).length !== 4 ) return false;
 
   const { isProd, tags, M_dyn, M_dyn_schm } = v as { [ K in keyof ConfigT ]?: unknown };
 
